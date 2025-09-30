@@ -1,44 +1,74 @@
 # SETUP Guide — mirror.iith.ac.in
 
-> This guide explains how to set up and replicate the internal IITH mirror service for Ubuntu releases and apt-cacher-ng.  
+> This guide walks you through setting up and replicating the internal IITH mirror service for Ubuntu releases and apt-cacher-ng.  
+
+---
+## Initial Setup
+Follow these steps for a fresh installation.
+
+1. **Install Caddy**
+```bash
+# Install required dependencies
+sudo apt update
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
+
+# Add the official Caddy repository
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+
+# Install Caddy
+sudo apt update
+sudo apt install -y caddy
+```
+
+2. **Enable and Start Caddy**
+```bash
+sudo systemctl enable caddy
+sudo systemctl start caddy
+```
+
+3. **Configure Caddyfile**
+```bash
+sudo nano Caddyfile
+```
+Paste the Caddyfile contents from this repository.
 
 ---
 
-## 1. Directory Structure
+### 1. Directory Structure
 
-All mirror files and templates are stored on the mirror server under `/srv/mirror`:
+All mirror files and templates are organized under `/srv/mirror`:
 
 ```
 /srv/mirror/
-├── ubuntu/              # Optional: future full Ubuntu package mirror
+├── ubuntu/              # (Optional) Full Ubuntu package mirror
 ├── ubuntu/cdimages/     # Ubuntu ISO images & CD releases
 └── ...
 
-/srv/templates/          # Browse templates for directory listings
+/srv/templates/          # Directory listing templates
 ├── index.html
 └── mirror-browse.html
 ```
 
-- **Cached apt packages** are stored by apt-cacher-ng in:  
-  `/var/cache/apt-cacher-ng/`
+- **Cached apt packages:**  
+  Stored by apt-cacher-ng in `/var/cache/apt-cacher-ng/`
 
-- **Caddy configuration** lives at:  
-  `/etc/caddy/Caddyfile`
+- **Caddy configuration:**  
+  Located at `/etc/caddy/Caddyfile`
 
 ---
 
-## 2. Install Dependencies
+### 2. Install Dependencies
 
-On Ubuntu/Debian server, run:
+On your Ubuntu/Debian server, run:
 
 ```bash
 sudo apt update
-sudo apt install -y caddy apt-cacher-ng rsync
+sudo apt install -y apt-cacher-ng rsync
 ```
 
-- **Caddy:** Serves mirror files and reverse-proxies apt requests.
-- **apt-cacher-ng:** Handles on-demand caching of `.deb` packages.
-- **rsync:** Used to sync Ubuntu CD images from upstream mirrors.
+- **apt-cacher-ng:** Caches `.deb` packages on demand.
+- **rsync:** Synchronizes Ubuntu CD images from upstream mirrors.
 
 ---
 
@@ -61,33 +91,33 @@ To automate daily sync at 2 AM, add this cron job:
 
 ## 4. Configure apt-cacher-ng
 
-The default configuration works for most setups.
+The default configuration is suitable for most environments.
 
 - **Config file:** `/etc/apt-cacher-ng/acng.conf`
 - **Cache storage:** `/var/cache/apt-cacher-ng/`
 
 Start and enable the service.  
-`apt-cacher-ng` caches `.deb` packages on-demand.
+`apt-cacher-ng` will cache `.deb` packages as clients request them.
 
-- Metadata files (`Release`, `Packages.gz`) are automatically refreshed when clients request updates.
-- Cached `.deb` files remain in storage; they are immutable and safely reused.
+- Metadata files (`Release`, `Packages.gz`) are refreshed automatically when clients run `apt update`.
+- Cached `.deb` files are stored immutably and reused for future requests.
 
 ---
 
-## 5. How Things Work
+## 5. How It Works
 
 ### Directory Listing / Browse Template
 
 - Requests to `/` or `/ubuntu-releases/` are served by Caddy’s `file_server`.
-- Custom templates (`index.html`) provide nicer HTML views for directories.
+- Custom templates (`index.html`) provide a user-friendly HTML view for directories.
 
 ### Ubuntu ISOs
 
-- Stored under `/srv/mirror/ubuntu/cdimages`.
+- All ISO images are stored under `/srv/mirror/ubuntu/cdimages`.
 
 ### APT Caching
 
-- Clients inside IITH use the mirror as an apt proxy:  
+- IITH clients configure their systems to use the mirror as an apt proxy:  
   `http://mirror.iith.ac.in/apt/`
-- Packages are fetched from upstream only if not already cached.
-- Metadata files are automatically updated on request.
+- Packages are downloaded from upstream only if not already cached locally.
+- Metadata files are updated automatically whenever clients request them.

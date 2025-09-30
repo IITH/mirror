@@ -1,0 +1,27 @@
+mirror.iith.ac.in {
+    tls /etc/ssl/caddy/mirror.iith.ac.in/fullchain.pem /etc/ssl/caddy/mirror.iith.ac.in/privkey.pem    
+    root * /srv/mirror
+
+    file_server {
+        browse /srv/templates/index.html
+   }
+   
+   handle /ubuntu-releases {
+	redir /ubuntu-releases/ 301
+   }
+
+    handle_path /ubuntu-releases* {
+        root * /srv/mirror/ubuntu/cdimages
+        file_server {
+            index HEADER.html
+        }
+    }
+    
+    handle_path /apt/* {
+        reverse_proxy 127.0.0.1:3142 {
+		transport http {
+                versions h1
+            }
+        }
+    }
+}
